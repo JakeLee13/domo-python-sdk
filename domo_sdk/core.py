@@ -220,6 +220,11 @@ class _DataInterface:
         """Replace existing dataset with new data."""
         pydomo_client = _get_pydomo_client()
         return pydomo_client.ds_update(dataset_id, dataframe)
+    
+    def query(self, dataset_id: str, query):
+        """Query a dataset"""
+        pydomo_client = _get_pydomo_client()
+        return pydomo_client.ds_query(dataset_id, query)
 
 
 class _GroupsInterface:
