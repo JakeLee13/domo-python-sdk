@@ -20,27 +20,30 @@ from domo_sdk import *
 auth("your_dev_token", "your_client_id", "your_client_secret")
 
 # Generate content using LLM
-llm.generate("What is cargo culting in the context of SaaS companies?")
+llm.prompt("What is cargo culting in the context of SaaS companies?")
 
-# Use prompt templates and variables
+# Simple variable subsitution
 transcript = "Agent: Good morning! This is Sarah..."
-llm.generate(
+llm.prompt(
     "Provide a recap of this call transcript: {transcript}", 
     transcript=transcript
 )
 
 # Process multiple prompts in parallel
 prompts = ["What is Domo?", "What is PowerBI?", "What is Tableau?"]
-results = llm.parallel(prompts, lambda prompt: llm.generate(prompt))
+results = llm.parallel(prompts, lambda prompt: llm.prompt(prompt))
 
 # Create and send formatted emails
-email_body = llm.generate(
+email_body = llm.prompt(
     "Create a market analysis email about Domo and its competitors",
     template="email"
 )
-emails.send("team@company.com", "Market Analysis", email_body)
+emails.send(
+    "team@company.com",        # recipient email
+    "Market Analysis",         # subject
+    email_body)                # body    
 
-# Generate pro code app cards
+# Generate 
 apps.create(
     "Sales Dashboard",
     "Beautiful modern SAAS dashboard with sales metrics, graphs, and insights"
@@ -48,24 +51,24 @@ apps.create(
 ```
 
 **Setup Requirements:**
-- Dev Token: `your-instance.domo.com/admin/security/accesstokens`
-- API Client: `your-instance.domo.com/admin/api-clients`
+- Dev Token: `your-instance.domo.com/admin/security/accesstokens` -> Generate Access Token
+- API Client: `your-instance.domo.com/admin/api-clients` -> Create
 
 ## API Reference
 
 ### AI Content Generation
 ```python
 # Basic generation
-result = llm.generate("your prompt")
+result = llm.prompt("your prompt")
 
 # With templates
-email_html = llm.generate("prompt", template="email")
+email_html = llm.prompt("prompt", template="email")
 
 # With variable substitution
-result = llm.generate("Analyze this: {data}", data=transcript)
+result = llm.prompt("Analyze this: {data}", data=transcript)
 
 # Parallel processing (3-5x faster)
-results = llm.parallel(prompts, lambda p: llm.generate(p), max_workers=4)
+results = llm.parallel(prompts, lambda p: llm.prompt(p), max_workers=4)
 ```
 
 **Templates:** `email`, `app`
