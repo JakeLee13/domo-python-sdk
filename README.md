@@ -30,7 +30,10 @@ llm.prompt(
 )
 
 # Process multiple prompts in parallel
-prompts = ["What is Domo?", "What is PowerBI?", "What is Tableau?"]
+prompts = ["What is Domo?",
+           "What is PowerBI?",
+           "What is Tableau?"]
+
 results = llm.parallel(prompts, lambda prompt: llm.prompt(prompt))
 
 # Create and send formatted emails
