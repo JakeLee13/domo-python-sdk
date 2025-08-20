@@ -106,7 +106,7 @@ class _LLMInterface:
         response_json = domo_client._post(url, request_json).json()
         return response_json["output"]
     
-    def generate(self, prompt: str, *args, template=None, **kwargs) -> str:
+    def prompt(self, prompt: str, *args, template=None, **kwargs) -> str:
         """Generate AI content with optional expert scaffold templating."""
         formatted_prompt = prompt.format(*args, **kwargs) if args or kwargs else prompt
         
@@ -472,7 +472,7 @@ class _AppsInterface:
     def _generate_app_code(self, description: str) -> Optional[dict]:
         """Generate HTML, CSS, and JS code using expert scaffold."""
         try:
-            code_response = llm.generate(description, template="app")
+            code_response = llm.prompt(description, template="app")
             return self._parse_json_response(code_response)
         except Exception as e:
             print(f"Code generation error: {str(e)}")
