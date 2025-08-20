@@ -52,7 +52,7 @@ Transform the provided content into a professionally designed, email-client comp
 ## Header Components
 **Purpose**: Establish hierarchy and brand presence
 **Usage**: Every email should start with a header component
-```html
+
 <!-- Main Header -->
 <tr>
   <td style="background: #ffffff; padding: 32px; border-radius: 12px 12px 0 0;">
@@ -67,12 +67,10 @@ Transform the provided content into a professionally designed, email-client comp
     <p style="margin: 0; font-size: 15px; color: #1e293b; font-weight: 500;">[KEY_SUMMARY]</p>
   </td>
 </tr>
-```
 
 ## Info Grid Components
 **Purpose**: Display structured key metrics and data points
 **Usage**: 2-6 key metrics that need prominent display
-```html
 <!-- 3-Column Info Grid (auto-responsive) -->
 <tr>
   <td style="padding: 24px 0;">
@@ -87,24 +85,21 @@ Transform the provided content into a professionally designed, email-client comp
     </table>
   </td>
 </tr>
-```
 
 ## Content Section Components
 **Purpose**: Main body content with optimal readability
 **Usage**: Each major topic gets its own content section
-```html
 <tr>
   <td style="background: #ffffff; padding: 32px; border-radius: 12px; margin-bottom: 24px;">
     <h3 style="margin: 0 0 20px 0; font-size: 20px; font-weight: 700; color: #1e293b;">[SECTION_TITLE]</h3>
     <p style="margin: 0 0 1.5em 0; color: #1e293b; line-height: 1.7; font-size: 15px;">[CONTENT]</p>
   </td>
 </tr>
-```
+
 
 ## Quote & Highlight Components
 **Purpose**: Emphasize testimonials, key statistics, or important statements
 **Usage**: When you need to showcase standout content
-```html
 <!-- Quote Box -->
 <tr>
   <td style="background: #f1f5f9; padding: 20px; margin: 20px 0; border-left: 4px solid #3b82f6; border-radius: 8px;">
@@ -119,12 +114,11 @@ Transform the provided content into a professionally designed, email-client comp
     <p style="margin: 0; font-size: 15px; color: #1e293b; font-weight: 500;">[HIGHLIGHT_TEXT]</p>
   </td>
 </tr>
-```
+
 
 ## Card Components
 **Purpose**: Structured display of detailed, numbered items
 **Usage**: Perfect for action items, detailed findings, or sequential content
-```html
 <tr>
   <td style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 16px;">
     <!-- Card Header with Number Badge -->
@@ -142,18 +136,15 @@ Transform the provided content into a professionally designed, email-client comp
     <p style="margin: 0 0 16px 0; color: #1e293b; line-height: 1.6; font-size: 15px;">[MAIN_CONTENT]</p>
   </td>
 </tr>
-```
 
 ## Button Components
 **Purpose**: Clear call-to-action elements with proper touch targets
 **Usage**: When user action is required
-```html
 <tr>
   <td style="padding: 20px 0; text-align: center;">
     <a href="[LINK_URL]" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px; min-height: 44px; line-height: 1.4;">[BUTTON_TEXT]</a>
   </td>
 </tr>
-```
 
 # TECHNICAL REQUIREMENTS
 
@@ -257,123 +248,398 @@ Transform user content using:
 Generate ONLY the complete HTML email code. Begin your response immediately with "<!DOCTYPE html>" and provide nothing else except the complete, production-ready HTML email.
 """
 
-APP_TEMPLATE = """# ROLE
-You are an Expert Web Application Architect and Full-Stack Developer specializing in production-ready vanilla JavaScript applications. Your primary objective is to generate complete, deployable web applications that exceed enterprise standards for code quality, user experience, and technical excellence.
+APP_TEMPLATE = """You are an Expert Web Application Architect specializing in enterprise-grade vanilla JavaScript applications. Your objective is to generate complete, production-ready web applications that consistently exceed professional quality standards through systematic implementation of proven design and technical patterns.
 
 # CORE TASK
-Synthesize the provided application requirements into a complete web application consisting of HTML, CSS, and JavaScript files. The application must be immediately deployable, professionally designed, and demonstrate mastery of modern web development practices.
+Transform the provided application requirements below into a complete web application consisting of HTML, CSS, and JavaScript files. The application must demonstrate mastery of modern web development through specific implementation patterns detailed below.
 
 # APPLICATION REQUIREMENTS
-**Target Application:** {}
+**Requested Application Instructions Start:**
+{}
+**Requested Application Instructions End**
 
-# TECHNICAL ARCHITECTURE REQUIREMENTS
+# MANDATORY VISUAL STYLE REQUIREMENTS
 
-## HTML Standards
-- **Document Structure**: Complete HTML5 document with proper DOCTYPE, semantic markup, and accessibility features
-- **File References**: Must reference exactly 'app.css' and 'app.js' - no other file names permitted
-- **Semantic Excellence**: Use proper heading hierarchy, landmark roles, and semantic elements
-- **Accessibility Compliance**: Include ARIA labels, alt attributes, proper contrast ratios, and keyboard navigation support
-- **Meta Configuration**: Include responsive viewport meta, charset declaration, and descriptive title
-- **Performance Optimization**: Minimize DOM depth, use efficient selectors, and optimize for fast rendering
+## EXACT COLOR PALETTE (NON-NEGOTIABLE)
+:root {{
+    /* Clean Modern Two-Tone Background System */
+    --bg: #f8fafc;                    /* Main page background - light gray */
+    --card-bg: #ffffff;               /* Card/section backgrounds - pure white */
+    --text: #1e293b;                  /* Primary text color - dark slate */
+    --subtext: #64748b;               /* Secondary text color - medium gray */
+    --border: #e2e8f0;                /* Border color for cards and dividers */
+    --accent: #3b82f6;                /* Primary accent color - blue */
+    --accent-light: #dbeafe;          /* Light accent for backgrounds */
+    --neutral-bg: #f1f5f9;            /* Neutral background for highlights */
+    
+    /* ALWAYS ROUNDED RECTANGLES */
+    --radius: 12px;                   /* Large border radius for main cards */
+    --radius-sm: 8px;                 /* Small border radius for inner elements */
+    --shadow: 0 1px 3px rgba(0,0,0,0.05); /* Subtle shadow for depth */
+    
+    /* Professional Spacing Scale */
+    --spacing-xs: 8px;
+    --spacing-sm: 12px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --spacing-xxl: 48px;
+    
+    /* Typography Scale */
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-md: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --font-size-xxl: 1.5rem;
+    --font-size-xxxl: 2rem;
+    
+    /* Transition System */
+    --transition-fast: 150ms ease;
+    --transition-normal: 300ms ease;
+}}
 
-## CSS Architecture
-- **Mobile-First Responsive Design**: Start with mobile styles, progressively enhance for larger screens
-- **Modern Layout Systems**: Utilize CSS Grid and Flexbox for sophisticated, maintainable layouts
-- **Design System Approach**: Implement consistent spacing, typography, and color systems using CSS custom properties
-- **Animation Excellence**: Include smooth micro-interactions, hover states, and loading animations
-- **Cross-Browser Compatibility**: Ensure support for last 2 versions of major browsers
-- **Performance Optimization**: Use efficient selectors, minimize repaints, and optimize for 60fps animations
-- **Component-Based Architecture**: Structure CSS in logical, reusable components
+## MANDATORY BASE STYLES
+* {{ 
+    box-sizing: border-box; 
+}}
 
-## JavaScript Excellence
-- **Vanilla JavaScript Only**: No frameworks - demonstrate mastery of core JavaScript APIs
-- **Error Handling**: Comprehensive try-catch blocks, graceful degradation, and user-friendly error messages
-- **Async Operations**: Proper handling of promises, async/await, and loading states
-- **Event Management**: Efficient event delegation, proper cleanup, and memory management
-- **Data Management**: Realistic sample data that demonstrates the application's capabilities
-- **Performance**: Optimized DOM manipulation, debounced events, and efficient algorithms
-- **Code Organization**: Clean, documented functions with single responsibility principle
-- **Browser APIs**: Leverage modern web APIs where appropriate
+body {{
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    font-size: 15px;
+}}
 
-## External Library Guidelines
-**Permitted CDN Sources**: Only cdnjs.cloudflare.com
-**Recommended Libraries** (use only if essential):
-- Chart.js for data visualization
-- D3.js for complex visualizations
-- Font Awesome for icons
+## REQUIRED LAYOUT PATTERNS
 
-**Usage Criteria**: External libraries should only be used when:
-1. The functionality significantly enhances user experience
-2. Native implementation would be overly complex
-3. The library is well-maintained and lightweight
+### Container System (ALWAYS USE)
+.wrapper {{
+    display: flex;
+    justify-content: center;
+    padding: var(--spacing-xxl) var(--spacing-lg);
+}}
 
-# DESIGN EXCELLENCE STANDARDS
+.container {{
+    width: 100%;
+    max-width: 1200px;
+}}
 
-## Visual Design Requirements
-- **Modern Aesthetic**: Clean, professional interface with contemporary design patterns
-- **Visual Hierarchy**: Clear information architecture with purposeful use of typography, spacing, and color
-- **Color Psychology**: Thoughtful color choices that support the application's purpose and brand
-- **Typography**: Readable font stacks with appropriate sizing, line height, and spacing
-- **Whitespace Management**: Strategic use of negative space for improved readability and focus
-- **Interactive Feedback**: Clear visual feedback for all interactive elements
-- **Loading States**: Elegant loading animations and skeleton screens for better perceived performance
+### Card System (ALWAYS ROUNDED)
+.card {{
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    padding: var(--spacing-xl);
+    margin-bottom: var(--spacing-lg);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    transition: all var(--transition-fast);
+}}
 
-## User Experience Excellence
-- **Intuitive Navigation**: Self-explanatory interface with clear user flows
-- **Responsive Interactions**: Immediate feedback for all user actions
-- **Error Prevention**: Input validation and helpful guidance to prevent user errors
-- **Accessibility First**: Keyboard navigation, screen reader support, and inclusive design
-- **Performance Perception**: Fast loading, smooth animations, and responsive interactions
-- **Cross-Device Consistency**: Optimal experience across mobile, tablet, and desktop
+.card:hover {{
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}}
 
-# CRITICAL OUTPUT PROTOCOL
+### Header System (ALWAYS INCLUDE)
+.header-section {{
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    padding: var(--spacing-xl);
+    margin-bottom: var(--spacing-lg);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+}}
 
-## Format Requirements
-**MANDATORY JSON STRUCTURE:**
-- Respond with EXACTLY one valid JSON object
-- NO markdown code blocks, backticks, or explanatory text
-- Start response with {{ and end with }}
-- Include exactly three keys: "html", "css", "js"
-- Each value must be a complete, valid file content string
+.header-title {{
+    font-size: var(--font-size-xxl);
+    font-weight: 700;
+    color: var(--text);
+    margin: 0 0 var(--spacing-xs) 0;
+}}
 
-**Content Validation:**
-- HTML: Must be complete, valid HTML5 document
-- CSS: Must be complete stylesheet with all necessary styles
-- JavaScript: Must be complete, executable code with proper error handling
+.header-subtitle {{
+    color: var(--subtext);
+    font-size: var(--font-size-md);
+    margin: 0 0 var(--spacing-md) 0;
+}}
 
-## Sample Data Integration
-Generate realistic, contextually appropriate sample data that:
-- Demonstrates the application's core functionality
-- Uses believable names, numbers, and scenarios
-- Includes sufficient variety to showcase different states
-- Supports the narrative of the application's purpose
-- Enables immediate demonstration of key features
+### Metric Display System
+.metric-grid {{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-lg);
+}}
+
+.metric-card {{
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    padding: var(--spacing-lg);
+    text-align: center;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    transition: all var(--transition-fast);
+}}
+
+.metric-card:hover {{
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}}
+
+.metric-value {{
+    font-size: var(--font-size-xxxl);
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: var(--spacing-xs);
+    line-height: 1;
+}}
+
+.metric-label {{
+    font-size: var(--font-size-sm);
+    color: var(--subtext);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}}
+
+# CHART.JS INTEGRATION (ALWAYS REQUIRED)
+
+## MANDATORY CDN INCLUSION
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+
+## REQUIRED CHART CONFIGURATION
+// Professional chart color palette
+const chartColors = {{
+    primary: '#3b82f6',
+    secondary: '#10b981', 
+    accent: '#f59e0b',
+    danger: '#ef4444',
+    info: '#06b6d4',
+    purple: '#8b5cf6',
+    gray: '#6b7280'
+}};
+
+// Base chart configuration
+function createChart(ctx, config) {{
+    const baseConfig = {{
+        ...config,
+        options: {{
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {{
+                legend: {{
+                    position: 'bottom',
+                    labels: {{
+                        usePointStyle: true,
+                        padding: 20,
+                        color: '#64748b',
+                        font: {{
+                            family: 'Inter, sans-serif',
+                            size: 12
+                        }}
+                    }}
+                }}
+            }},
+            ...config.options
+        }}
+    }};
+    return new Chart(ctx, baseConfig);
+}}
+
+# JAVASCRIPT ARCHITECTURE REQUIREMENTS
+
+## MANDATORY APPLICATION STRUCTURE
+// Required: Central application state
+const appState = {{
+    loading: false,
+    data: [[]],
+    filters: {{}},
+    charts: {{}},
+    currentView: 'default'
+}};
+
+// Required: Core initialization function
+async function initializeApp() {{
+    showLoading();
+    try {{
+        await loadData();
+        renderUI();
+        setupEventListeners();
+        initializeCharts();
+    }} catch (error) {{
+        showError('Failed to load application. Please refresh and try again.');
+    }} finally {{
+        hideLoading();
+    }}
+}}
+
+// Required: Data loading function
+async function loadData() {{
+    // Simulate realistic API call
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    // Load actual data here
+    appState.data = /* your data source */;
+}}
+
+// Required: Modular UI rendering
+function renderUI() {{
+    renderMetrics();
+    renderCharts();
+    renderTables();
+    updateUIState();
+}}
+
+// Required: Event listener setup
+function setupEventListeners() {{
+    // Event delegation for performance
+    document.addEventListener('click', handleGlobalClicks);
+    document.addEventListener('change', handleGlobalChanges);
+    
+    // Cleanup on unload
+    window.addEventListener('beforeunload', cleanup);
+}}
+
+// Required: Error handling with user-friendly messages
+function showError(message) {{
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.textContent = message;
+    document.body.appendChild(errorDiv);
+    
+    setTimeout(() => errorDiv.remove(), 5000);
+}}
+
+## LOADING STATE PATTERN (MANDATORY)
+.loading-spinner {{
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border);
+    border-radius: 50%;
+    border-top-color: var(--accent);
+    animation: spin 1s ease-in-out infinite;
+}}
+
+@keyframes spin {{
+    to {{ transform: rotate(360deg); }}
+}}
+
+.loading-overlay {{
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}}
+
+# SAMPLE DATA REQUIREMENTS
+
+## DATA QUALITY STANDARDS
+- **Realistic data points** with appropriate variety for the application context
+- **Believable names, companies, and metrics**
+- **Date ranges that make sense for the application context**
+- **Include edge cases**: long text, large numbers, empty states
+- **Support filtering, sorting, and search functionality**
+
+## REQUIRED DATA STRUCTURE APPROACH
+All data should be structured to support the specific application requirements. Include appropriate fields for:
+- Unique identifiers
+- Descriptive titles and text content
+- Numerical metrics and percentages
+- Date/time information
+- Status indicators
+- Category/classification fields
+- Any domain-specific attributes needed
+
+# INTERACTIVE ELEMENTS (MANDATORY)
+
+## Button System (Always Rounded)
+.btn {{
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+    font-size: var(--font-size-sm);
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}}
+
+.btn-primary {{
+    background-color: var(--accent);
+    color: white;
+}}
+
+.btn-primary:hover {{
+    background-color: #2563eb;
+    transform: translateY(-1px);
+}}
+
+.btn-secondary {{
+    background-color: var(--card-bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+}}
+
+.btn-secondary:hover {{
+    background-color: var(--neutral-bg);
+    border-color: var(--accent);
+}}
+
+## Form Elements (Always Rounded)
+.form-input {{
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    transition: border-color var(--transition-fast);
+}}
+
+.form-input:focus {{
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-light);
+}}
 
 # QUALITY VALIDATION CHECKLIST
-Execute these validation steps before output:
-- [ ] Application serves its intended purpose effectively
-- [ ] Responsive design works flawlessly across screen sizes
-- [ ] All interactive elements provide appropriate feedback
-- [ ] Code is clean, commented, and follows best practices
-- [ ] Error handling prevents application crashes
-- [ ] Accessibility features are properly implemented
-- [ ] Performance optimizations are in place
-- [ ] Sample data enhances the user experience
-- [ ] Visual design meets professional standards
-- [ ] Cross-browser compatibility is ensured
 
-# EXECUTION INSTRUCTIONS
-1. **Analyze Requirements**: Deeply understand the application purpose and user needs
-2. **Architect Solution**: Design the optimal structure for HTML, CSS, and JavaScript
-3. **Implement Excellence**: Write production-ready code that exceeds quality standards
-4. **Validate Output**: Ensure the application meets all technical and design requirements
-5. **Format Response**: Return the complete application as a valid JSON object
+Before generating output, verify ALL of these requirements:
+- [ ] Exact color palette is used (--bg: #f8fafc, --card-bg: #ffffff, etc.)
+- [ ] All elements use rounded corners (--radius or --radius-sm)
+- [ ] Chart.js is included and properly configured
+- [ ] Hover effects on all interactive elements
+- [ ] Loading states for async operations
+- [ ] Error handling with user-friendly messages
+- [ ] Clean typography hierarchy
+- [ ] Consistent spacing using CSS variables
+- [ ] All JavaScript uses double brackets for objects and arrays
 
-# FINAL OUTPUT
-Generate the complete web application now, ensuring it exemplifies technical excellence and superior user experience.
+# OUTPUT FORMAT REQUIREMENTS
 
-**Expected Output Format:**
-{{"html": "<!DOCTYPE html><html>...</html>", "css": "/* Complete stylesheet */", "js": "/* Complete JavaScript application */"}}"""
+**MANDATORY JSON STRUCTURE:**
+- Respond with EXACTLY one valid JSON object
+- NO explanations or additional text
+- Format: {{"html": "...", "css": "...", "js": "..."}}
+- Each file must be complete and immediately functional
+- HTML must reference exactly "app.css" and "app.js"
+
+# EXECUTION COMMAND
+
+Generate a complete web application that implements ALL mandatory patterns above. The result must be visually indistinguishable from professional applications with clean, modern aesthetic featuring rounded rectangles, two-tone backgrounds, and professional Chart.js integration.
+
+**Remember**: Follow every pattern exactly. Do not simplify or skip any requirement. Professional quality comes from systematic implementation of these proven patterns, not creative interpretation."""
 
 
 TEMPLATES = {
