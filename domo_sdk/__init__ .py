@@ -1,21 +1,74 @@
 """
 Domo Automation SDK
 
+A unified automation toolkit for Domo operations, providing simple Python
+interfaces for AI generation, email delivery, data management, user administration,
+form creation, task management, web scraping, and custom app generation.
+
+Example usage:
+    from domo_sdk import auth, llm, email, data
+    
+    # Configure authentication
+    auth(dev_token="your_token", 
+         client_id="your_client_id", 
+         client_secret="your_secret")
+    
+    # Generate AI content
+    result = llm.prompt("Write a sales report summary")
+    
+    # Send email
+    email.send("user@company.com", "Report", result)
+    
+    # Get dataset
+    df = data.get("dataset_id_123")
+
 """
 
-from .core import auth, llm, emails, data, groups, forms, tasks, queues, web, apps
+from .core import auth, get_config
+from .clients import LLM, Email, Data, Groups, Forms, Tasks, Queues, Web, Apps
+
 from . import templates
+
+# Create global client instances
+llm = LLM()
+email = Email()  
+data = Data()
+groups = Groups()
+forms = Forms()
+tasks = Tasks()
+queues = Queues()
+web = Web()
+apps = Apps()
 
 __version__ = "0.1.0"
 
-__all__ = ["auth", 
-           "llm",
-           "emails", 
-           "data", 
-           "groups",
-           "forms", 
-           "tasks", 
-           "queues",
-           "web", 
-           "apps",
-           "templates"]
+__all__ = [
+    # Core functions
+    "auth", 
+    "get_config",
+    
+    # Client instances
+    "llm", 
+    "email", 
+    "data", 
+    "groups", 
+    "forms", 
+    "tasks", 
+    "queues", 
+    "web", 
+    "apps",
+    
+    # Client classes
+    "LLM",
+    "Email", 
+    "Data",
+    "Groups",
+    "Forms",
+    "Tasks", 
+    "Queues",
+    "Web",
+    "Apps",
+    
+    # Templates module
+    "templates"
+]
