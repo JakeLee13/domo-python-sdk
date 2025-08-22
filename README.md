@@ -10,11 +10,6 @@ cd domo-automation-sdk
 pip install .
 ```
 
-For development with testing tools:
-```bash
-pip install -e ".[dev]"
-```
-
 ## Quick Start
 
 ```python
@@ -40,7 +35,7 @@ results = llm.parallel(prompts, lambda prompt: llm.prompt(prompt))
 # Create and send formatted emails with templates
 email_body = llm.prompt(
     "Create a market analysis email about Domo and its competitors",
-    template="email"  # Uses expert email template
+    template="email"  # Uses email template
 )
 email.send("team@company.com", "Market Analysis", email_body)
 
@@ -160,15 +155,6 @@ content = web.scrape("https://example.com",
                      user_agent="Custom Bot 1.0")
 ```
 
-## Features
-
-- **🤖 AI Generation**: Expert prompt templates for emails and apps
-- **📧 Email Delivery**: HTML emails through Domo's Code Engine  
-- **📊 Data Management**: Easy dataset operations via PyDomo
-- **👥 User Administration**: Group and permission management
-- **📝 Form & Task Management**: Create forms and assign tasks
-- **🌐 Web Scraping**: Simple webpage content extraction
-- **🎨 Custom Apps**: AI-powered Domo app generation with Chart.js
 
 ## Requirements
 
