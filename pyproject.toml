@@ -8,9 +8,7 @@ version = "0.1.0"
 description = "Unified automation toolkit for Domo operations"
 readme = "README.md"
 requires-python = ">=3.8"
-authors = [
-    {name = "Your Name", email = "your.email@company.com"}
-]
+
 dependencies = [
     "domojupyter>=1.0.0",
     "pydomo>=0.3.0", 
@@ -30,9 +28,7 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourorg/domo-sdk"
 Documentation = "https://github.com/yourorg/domo-sdk/blob/main/README.md"
-Repository = "https://github.com/yourorg/domo-sdk.git"
 
 [tool.setuptools.packages.find]
 where = ["."]
