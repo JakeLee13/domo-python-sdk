@@ -1,4 +1,4 @@
-# Domo Automation SDK
+# Domo Automation SDK [In-Progress]
 
 AI-powered automation toolkit for Domo operations with simple Python interfaces for content generation, email delivery, data management, and custom app creation.
 
