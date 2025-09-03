@@ -5,8 +5,8 @@ AI-powered automation toolkit for Domo operations with simple Python interfaces 
 ## Installation
 
 ```bash
-git clone https://github.com/JakeLee13/domo-automation-sdk
-cd domo-automation-sdk
+git clone https://github.com/JakeLee13/domo_sdk
+cd domo_sdk
 pip install .
 ```
 
