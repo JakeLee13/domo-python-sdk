@@ -12,14 +12,15 @@ from ..core import _get_domo_client, _config
 class Apps:
     """AI-powered application generator client."""
     
-    def create(self, name: str, description: str, template_id: str = None) -> Optional[str]:
+    def create(self, name: str, description: str, template_id: str = None, use_default_template: bool = True) -> Optional[str]:
         """
         Create complete Domo custom app with AI-generated code.
         
         Args:
             name: Application name
-            description: Description of what the app should do
+            description: Description of what the app should do (or complete template with instructions)
             template_id: Optional custom template ID (uses default if not provided)
+            use_default_template: If False, bypasses the default app template and uses description as-is
             
         Returns:
             App URL if successful, None if failed
@@ -27,7 +28,7 @@ class Apps:
         try:
             print(f"Creating app: {name}")
             
-            app_code = self._generate_app_code(description)
+            app_code = self._generate_app_code(description, use_default_template)
             if not app_code:
                 print("Failed to generate app code")
                 return None
@@ -45,14 +46,20 @@ class Apps:
             print(f"App creation failed: {str(e)}")
             return None
     
-    def _generate_app_code(self, description: str) -> Optional[dict]:
-        """Generate HTML, CSS, and JS code using expert scaffold."""
+    def _generate_app_code(self, description: str, use_default_template: bool = True) -> Optional[dict]:
+        """Generate HTML, CSS, and JS code using expert scaffold or custom template."""
         try:
             # Import here to avoid circular imports
             from .llm import LLM
             llm = LLM()
             
-            code_response = llm.prompt(description, template="app")
+            if use_default_template:
+                # Use the built-in app template
+                code_response = llm.prompt(description, template="app")
+            else:
+                # Use description as-is (for custom templates like NEWS_FEED_TEMPLATE)
+                code_response = llm.prompt(description)
+                
             return self._parse_json_response(code_response)
         except Exception as e:
             print(f"Code generation error: {str(e)}")

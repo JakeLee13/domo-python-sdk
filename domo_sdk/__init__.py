@@ -25,7 +25,7 @@ Example usage:
 """
 
 from .core import auth, get_config
-from .clients import LLM, Email, Data, Groups, Forms, Tasks, Queues, Web, Apps
+from .clients import LLM, Email, Data, Groups, Forms, Tasks, Queues, Web, Apps, Users, Vector
 
 from . import templates
 
@@ -39,6 +39,8 @@ tasks = Tasks()
 queues = Queues()
 web = Web()
 apps = Apps()
+users = Users()
+vector = Vector()
 
 __version__ = "0.1.0"
 
@@ -57,6 +59,8 @@ __all__ = [
     "queues", 
     "web", 
     "apps",
+    "users",
+    "vector",
     
     # Client classes
     "LLM",
@@ -68,6 +72,8 @@ __all__ = [
     "Queues",
     "Web",
     "Apps",
+    "Users",
+    "Vector",
     
     # Templates module
     "templates"

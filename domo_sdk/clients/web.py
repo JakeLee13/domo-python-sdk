@@ -1,11 +1,12 @@
 """
 Web scraping utilities client for Domo SDK.
 """
-
 from typing import Union, List, Optional
 import requests
 from bs4 import BeautifulSoup
+import urllib3
 
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class Web:
     """Web scraping utilities client."""
@@ -32,7 +33,7 @@ class Web:
             default_ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             headers = {'User-Agent': user_agent or default_ua}
             
-            response = requests.get(url, headers=headers, timeout=timeout)
+            response = requests.get(url, headers=headers, timeout=timeout, verify=False)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.content, 'html.parser')

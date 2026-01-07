@@ -14,7 +14,7 @@ _config = {
     'hostname': None,
     'workspace_id': None,
     'llm_settings': {
-        'model': "domo.domo_ai.domogpt-medium-v1.2:anthropic",
+        'model': "domo.domo_ai.domogpt-medium-v2.1",
         'temperature': 0.5,
         'system': "",
         'max_tokens': 64000
@@ -61,7 +61,7 @@ def auth(dev_token: str, client_id: str, client_secret: str,
         _config['workspace_id']
     )
     
-    api_host = os.environ.get('DOMO_API_HOST', 'api.domo.com')
+    api_host = os.environ.get('DOMO_API_HOST', 'api.beta.domo.com')
     _config['pydomo_client'] = PyDomo(
         client_id=client_id,
         client_secret=client_secret,

@@ -67,4 +67,20 @@ class Forms:
         
         response = domo_client._post(url, form_data)
         return response.json()
+    
+    def get(self, form_id: str):
+        """
+        Get form details by ID.
+
+        Args:
+            form_id: ID of form to retrieve
+
+        Returns:
+            Form information dictionary
+        """
+        domo_client = _get_domo_client()
+        url = f"{_config['hostname']}/api/forms/v2/{form_id}"
+
+        response = domo_client._get(url)
+        return response.json()
 

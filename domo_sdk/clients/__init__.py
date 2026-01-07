@@ -11,6 +11,8 @@ from .tasks import Tasks
 from .queues import Queues
 from .web import Web
 from .apps import Apps
+from .users import Users
+from .vector import Vector
 
 __all__ = [
     'LLM', 
@@ -21,5 +23,7 @@ __all__ = [
     'Tasks',
     'Queues', 
     'Web', 
-    'Apps'
+    'Apps',
+    'Users',
+    'Vector'
 ]
