@@ -1,9 +1,8 @@
-# Domo Automation SDK [In-Progress]
+# Domo Automation SDK [Internal]
 
-AI-powered automation toolkit for Domo operations with simple Python interfaces for content generation, email delivery, data management, and custom app creation.
+AI-powered automation toolkit for Domo operations within Domo's Jupyter Workspaces for LLM content generation, email delivery, data management, and custom app creation.
 
-## Installation
-
+## Installation 
 ```bash
 git clone https://github.com/JakeLee13/domo_sdk
 cd domo_sdk
@@ -11,7 +10,6 @@ pip install .
 ```
 
 ## Quick Start
-
 ```python
 from domo_sdk import auth, llm, email, data, apps
 
@@ -88,6 +86,9 @@ email.send(
     body="<html>...</html>",           # str (HTML supported)
     attachments=[dataset_id]           # Optional List[int]
 )
+
+# Send to Domo groups
+email.send_to_group(group_id=123, subject="Update", body="<html>...</html>")
 ```
 
 ### Custom App Generation
@@ -114,6 +115,24 @@ data.replace("dataset-id", new_dataframe)
 results = data.query("dataset-id", "SELECT * FROM table WHERE...")
 ```
 
+### User Management
+```python
+# List all users
+users_df = users.list_all(as_dataframe=True)
+
+# Get specific user
+user = users.get("user-id")
+
+# Find users by email or name
+user = users.find_by_email("john@company.com")
+user = users.find_by_name("John Doe")
+
+# Create, update, delete users
+users.create({"name": "Jane", "email": "jane@co.com", "role": "Participant"})
+users.update("user-id", {"title": "Manager"})
+users.delete("user-id")
+```
+
 ### User & Group Management
 ```python
 # Create groups with users
@@ -138,6 +157,29 @@ task = tasks.create("user-id", "form-id", "queue-id")
 
 # Collect responses as DataFrame
 responses_df = tasks.responses("queue-id")
+```
+
+### Vector & Embeddings
+```python
+# Generate embeddings
+embeddings = vector.embed(["text 1", "text 2", "text 3"])
+single_embedding = vector.embed_single("some text")
+
+# Similarity search
+results = vector.search("query text", corpus_embeddings, top_k=5)
+score = vector.similarity(embedding1, embedding2)
+
+# VectorDB index management
+vector.create_index("my-index")
+vector.list_indexes()
+vector.delete_index("my-index")
+
+# Upsert and query vectors
+vector.upsert("my-index", [{"content": "doc text", "type": "TEXT"}])
+results = vector.query("my-index", input_text="search query", top_k=10)
+
+# RAG pipeline helper
+prompt, docs = vector.rag_pipeline("my-index", "user question", top_k=3)
 ```
 
 ### Web Scraping
