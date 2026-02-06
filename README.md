@@ -1,4 +1,4 @@
-# Domo Automation SDK [Internal]
+# Domo Automation SDK
 
 AI-powered automation toolkit for Domo operations within Domo's Jupyter Workspaces for LLM content generation, email delivery, data management, and custom app creation.
 
