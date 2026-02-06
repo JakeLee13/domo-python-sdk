@@ -26,7 +26,7 @@ summary = llm.prompt(
     transcript=transcript
 )
 
-# Process multiple prompts in parallel (3-5x faster)
+# Process prompts in parallel
 prompts = ["What is Domo?", "What is PowerBI?", "What is Tableau?"]
 results = llm.parallel(prompts, lambda prompt: llm.prompt(prompt))
 
