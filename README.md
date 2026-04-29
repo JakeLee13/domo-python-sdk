@@ -89,27 +89,6 @@ results = llm.parallel(prompts, lambda p: llm.prompt(p), max_workers=4)
 
 **Available Templates:** `email`, `app`
 
-### Cost Tracking
-```python
-from domo_sdk import get_usage, reset_usage, track, flush_usage_to_dataset
-
-reset_usage()                # zero the counter at start of a run
-llm.prompt("Hello")
-print(get_usage())           # accumulated input/output/embedding tokens
-
-with track() as t:           # scoped tracking for a block
-    llm.prompt("World")
-print(t.chat_calls, t.total_tokens)
-
-flush_usage_to_dataset(
-    "DATASET_ID",
-    notebook_id="my-notebook",
-    run_id=os.environ.get("DOMO_AUTOMATION_RUN_ID"),
-)
-```
-
-See [agent-docs/cost-tracking.md](agent-docs/cost-tracking.md) for the dataset schema, scoping behavior, and limitations.
-
 ### Email Automation
 ```python
 email.send(
@@ -213,6 +192,55 @@ results = vector.query("my-index", input_text="search query", top_k=10)
 # RAG pipeline helper
 prompt, docs = vector.rag_pipeline("my-index", "user question", top_k=3)
 ```
+
+### Cost Tracking
+
+Every `llm.prompt()`, `llm.parallel()`, and `vector.embed()` call automatically accumulates token usage into a thread-safe global counter. This means notebooks running on Domo Automation can answer "what did this run cost?" without any per-call instrumentation.
+
+```python
+from domo_sdk import get_usage, reset_usage, track, flush_usage_to_dataset
+
+# Always-on global accumulator
+reset_usage()                          # zero the counter at start of a run
+llm.prompt("Summarize this transcript: ...")
+llm.parallel(items, lambda x: llm.prompt(f"Classify: {x}"))
+print(get_usage())
+# {'input_tokens': 12044, 'output_tokens': 3201, 'reasoning_tokens': 0,
+#  'embedding_tokens_estimated': 0, 'total_tokens': 15245,
+#  'chat_calls': 47, 'embedding_calls': 0, 'elapsed_seconds': 38.2, ...}
+
+# Scoped tracking for a specific block
+with track() as phase:
+    llm.prompt("Step one")
+    llm.prompt("Step two")
+print(phase.chat_calls, phase.total_tokens)   # 2, 184
+
+# Persist to a Domo dataset for cross-run analysis
+flush_usage_to_dataset(
+    "abc123-def4-5678-90ab-cdef12345678",
+    notebook_id="customer-churn-analysis",
+    run_id=os.environ.get("DOMO_AUTOMATION_RUN_ID"),
+)
+```
+
+#### How it works
+
+**Chat tokens are exact.** The Domo AI chat endpoint (`/api/ai/v1/messages/chat`) returns a `modelProviderUsage` block on every response with `inputTokens`, `outputTokens`, and `reasoningTokens`. The SDK's `llm._call_api()` extracts these and forwards them to the global counter. Numbers come straight from the model provider — no estimation.
+
+**Embedding tokens are estimated.** The Domo embedding endpoint (`/api/ai/v1/embedding/text`) does *not* return token counts (`modelProviderUsage` is null). The SDK estimates as `chars / 4`, which is a coarse model-agnostic approximation. Treat embedding totals as ±20% accurate — useful for trends, not for billing.
+
+**The counter is global and process-local.** A single module-level `_Counter` (in `domo_sdk/usage.py`) accumulates across every chat and embedding call in the current Python process. It's thread-safe via a `threading.Lock`, so `llm.parallel()` workers don't race. Each notebook kernel has its own counter — use `notebook_id` / `run_id` on flush to disambiguate runs.
+
+**Scoped tracking via `track()` is a snapshot-and-diff.** The context manager records the global counter on entry, computes the delta on exit, and exposes it on the context object. Tokens used inside the block are still counted in the global accumulator — `get_usage()` after the block sees them too.
+
+**Dataset flush is read-modify-write.** The Domo data client doesn't expose a true append, so `flush_usage_to_dataset()` does `data.get → concat → data.replace`. Fine for once-per-notebook cost logging; concurrent flushes can race and lose rows. Don't call from inside a parallel loop.
+
+#### What's not tracked
+
+- `vector.query(input_text=...)` — triggers an embedding call inside Domo's recall backend that doesn't surface to the SDK. Pre-embed via `vector.embed()` then pass `embedding=` if you need the cost visible.
+- JSON-mode chat calls (`response_format=`) burn ~600+ extra input tokens per call due to system prompt injection. The accumulator captures this faithfully — not a bug, just expect inflated input counts.
+
+See [agent-docs/cost-tracking.md](agent-docs/cost-tracking.md) for the dataset schema (12 columns), per-model breakdown caveats, and future-improvement notes. See [agent-docs/ai-response-shape.md](agent-docs/ai-response-shape.md) for the captured Domo AI response shapes that drive the tracking.
 
 ### Web Scraping
 ```python
