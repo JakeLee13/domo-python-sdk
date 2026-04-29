@@ -108,6 +108,7 @@ class LLM:
         provider_usage = response.get("modelProviderUsage") or {}
         usage.record_call(
             surface="chat",
+            model_id=response.get("modelId"),
             input_tokens=provider_usage.get("inputTokens") or 0,
             output_tokens=provider_usage.get("outputTokens") or 0,
             reasoning_tokens=provider_usage.get("reasoningTokens") or 0,

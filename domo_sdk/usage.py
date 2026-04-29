@@ -29,6 +29,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Iterator
 
+from . import pricing
+
 
 @dataclass
 class _Counter:
@@ -41,6 +43,8 @@ class _Counter:
     chat_calls: int = 0
     embedding_calls: int = 0
     elapsed_seconds: float = 0.0
+    cost_usd: float = 0.0
+    unknown_model_calls: int = 0  # calls where pricing lookup failed
     started_at: float = field(default_factory=time.time)
 
     def total_tokens(self) -> int:
@@ -59,6 +63,7 @@ _global = _Counter()
 def record_call(
     *,
     surface: str,
+    model_id: str | None = None,
     input_tokens: int = 0,
     output_tokens: int = 0,
     reasoning_tokens: int = 0,
@@ -73,12 +78,25 @@ def record_call(
 
     Args:
         surface: 'chat' or 'embedding' — which API surface produced this call
+        model_id: Model identifier from the API response (or request, for embeddings).
+            Used to look up pricing. None or unknown models contribute 0 to cost
+            but increment unknown_model_calls so coverage gaps are visible.
         input_tokens: Prompt tokens (chat) or 0 (embedding — see embedding_tokens_estimated)
         output_tokens: Generation tokens (chat) or 0 (embedding has no output)
         reasoning_tokens: Reasoning tokens for thinking models, or 0
-        embedding_tokens_estimated: Estimated tokens for embedding calls
+        embedding_tokens_estimated: Estimated tokens for embedding calls. For pricing
+            purposes these are summed into input_tokens against the model's input rate.
         elapsed_seconds: Wall-clock time for this call
     """
+    # Embeddings price on input only; route the estimated count there for cost calc.
+    cost_input = input_tokens + (embedding_tokens_estimated if surface == "embedding" else 0)
+    call_cost = pricing.calculate_cost_usd(
+        model_id=model_id,
+        input_tokens=cost_input,
+        output_tokens=output_tokens,
+        reasoning_tokens=reasoning_tokens,
+    )
+
     with _lock:
         if surface == "chat":
             _global.chat_calls += 1
@@ -91,6 +109,11 @@ def record_call(
         _global.reasoning_tokens += reasoning_tokens
         _global.embedding_tokens_estimated += embedding_tokens_estimated
         _global.elapsed_seconds += elapsed_seconds
+
+        if call_cost is None:
+            _global.unknown_model_calls += 1
+        else:
+            _global.cost_usd += call_cost
 
 
 def get_usage() -> dict[str, Any]:
@@ -112,6 +135,8 @@ def get_usage() -> dict[str, Any]:
             "chat_calls": _global.chat_calls,
             "embedding_calls": _global.embedding_calls,
             "elapsed_seconds": _global.elapsed_seconds,
+            "cost_usd": _global.cost_usd,
+            "unknown_model_calls": _global.unknown_model_calls,
             "started_at": _global.started_at,
         }
 
@@ -138,6 +163,8 @@ class TrackingContext:
         self.chat_calls: int = 0
         self.embedding_calls: int = 0
         self.elapsed_seconds: float = 0.0
+        self.cost_usd: float = 0.0
+        self.unknown_model_calls: int = 0
 
     def __enter__(self) -> "TrackingContext":
         self._snapshot = get_usage()
@@ -159,6 +186,10 @@ class TrackingContext:
         self.chat_calls = end["chat_calls"] - self._snapshot["chat_calls"]
         self.embedding_calls = (
             end["embedding_calls"] - self._snapshot["embedding_calls"]
+        )
+        self.cost_usd = end["cost_usd"] - self._snapshot["cost_usd"]
+        self.unknown_model_calls = (
+            end["unknown_model_calls"] - self._snapshot["unknown_model_calls"]
         )
         self.elapsed_seconds = time.time() - self._start
 
@@ -232,6 +263,8 @@ def flush_to_dataset(
         "chat_calls": snapshot["chat_calls"],
         "embedding_calls": snapshot["embedding_calls"],
         "elapsed_seconds": snapshot["elapsed_seconds"],
+        "cost_usd": snapshot["cost_usd"],
+        "unknown_model_calls": snapshot["unknown_model_calls"],
         "notebook_id": notebook_id or "",
         "run_id": run_id or "",
     }

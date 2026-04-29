@@ -75,6 +75,7 @@ class Vector:
             estimated_tokens = sum(len(t) for t in truncated_texts) // 4
             usage.record_call(
                 surface="embedding",
+                model_id=response.get("modelId") or model,
                 embedding_tokens_estimated=estimated_tokens,
                 elapsed_seconds=elapsed,
             )
