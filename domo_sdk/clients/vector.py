@@ -7,10 +7,12 @@ functionality for semantic search, RAG, and document retrieval.
 
 from typing import List, Dict, Any, Optional, Union, Tuple
 import base64
+import time
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
 from ..core import _get_domo_client, _config
+from .. import usage
 
 
 class Vector:
@@ -58,15 +60,28 @@ class Vector:
         }
         
         try:
+            call_started = time.time()
             response = domo_client._post(url, payload).json()
-            
+            elapsed = time.time() - call_started
+
             if 'status' in response and response['status'] >= 400:
                 error_msg = response.get('details', {}).get('inputIssue', response.get('message', 'Unknown error'))
                 raise ValueError(f"Embedding API error: {error_msg}")
-            
+
+            # Embedding endpoint does not return token counts (modelProviderUsage
+            # is null — see agent-docs/ai-response-shape.md). Estimate from input
+            # length: chars/4 is a coarse, model-agnostic approximation. Off by
+            # ±20%; treat as a trend indicator, not a billing source.
+            estimated_tokens = sum(len(t) for t in truncated_texts) // 4
+            usage.record_call(
+                surface="embedding",
+                embedding_tokens_estimated=estimated_tokens,
+                elapsed_seconds=elapsed,
+            )
+
             embeddings = response['embeddings']
             return np.array(embeddings)
-            
+
         except KeyError as e:
             print(f"ERROR: Unexpected response format: {response}")
             raise

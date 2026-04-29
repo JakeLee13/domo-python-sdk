@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from ..core import _get_domo_client, _config
 from .. import templates
+from .. import usage
 
 
 class LLM:
@@ -97,7 +98,21 @@ class LLM:
                 "type": "JSON",
                 "schema": response_format
             }
+        call_started = time.time()
         response = domo_client._post(url, payload).json()
+        elapsed = time.time() - call_started
+
+        # Record usage. modelProviderUsage may be null on rare error responses,
+        # and reasoningTokens is explicitly null on non-reasoning models — so
+        # `.get(..., 0) or 0` is needed (`.get(k, 0)` returns None when value is None).
+        provider_usage = response.get("modelProviderUsage") or {}
+        usage.record_call(
+            surface="chat",
+            input_tokens=provider_usage.get("inputTokens") or 0,
+            output_tokens=provider_usage.get("outputTokens") or 0,
+            reasoning_tokens=provider_usage.get("reasoningTokens") or 0,
+            elapsed_seconds=elapsed,
+        )
 
         # Return structured output if schema was provided
         if response_format:

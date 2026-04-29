@@ -2,11 +2,22 @@
 
 AI-powered automation toolkit for Domo operations within Domo's Jupyter Workspaces for LLM content generation, email delivery, data management, and custom app creation.
 
-## Installation 
+## Installation
+
+Install directly from the canonical repo (no clone needed):
+
 ```bash
-git clone https://github.com/JakeLee13/domo_sdk
-cd domo_sdk
-pip install .
+pip install git+https://github.com/domo-domosapiens/domo-python-sdk.git
+# or with uv:
+uv add git+https://github.com/domo-domosapiens/domo-python-sdk.git
+```
+
+For local development:
+
+```bash
+git clone https://github.com/domo-domosapiens/domo-python-sdk
+cd domo-python-sdk
+pip install -e ".[dev]"
 ```
 
 ## Quick Start
@@ -77,6 +88,27 @@ results = llm.parallel(prompts, lambda p: llm.prompt(p), max_workers=4)
 ```
 
 **Available Templates:** `email`, `app`
+
+### Cost Tracking
+```python
+from domo_sdk import get_usage, reset_usage, track, flush_usage_to_dataset
+
+reset_usage()                # zero the counter at start of a run
+llm.prompt("Hello")
+print(get_usage())           # accumulated input/output/embedding tokens
+
+with track() as t:           # scoped tracking for a block
+    llm.prompt("World")
+print(t.chat_calls, t.total_tokens)
+
+flush_usage_to_dataset(
+    "DATASET_ID",
+    notebook_id="my-notebook",
+    run_id=os.environ.get("DOMO_AUTOMATION_RUN_ID"),
+)
+```
+
+See [agent-docs/cost-tracking.md](agent-docs/cost-tracking.md) for the dataset schema, scoping behavior, and limitations.
 
 ### Email Automation
 ```python
@@ -200,6 +232,6 @@ content = web.scrape("https://example.com",
 
 ## Requirements
 
-- **Python 3.8+**
+- **Python 3.11+**
 - **Domo instance** with API access
-- **Dependencies**: Automatically installed via `pip install .`
+- **Dependencies**: Automatically installed by `pip install`

@@ -28,6 +28,13 @@ from .core import auth, get_config
 from .clients import LLM, Email, Data, Groups, Forms, Tasks, Queues, Web, Apps, Users, Vector
 
 from . import templates
+from . import usage as _usage_module
+from .usage import (
+    get_usage,
+    reset_usage,
+    track,
+    flush_to_dataset as flush_usage_to_dataset,
+)
 
 # Create global client instances
 llm = LLM()
@@ -42,39 +49,45 @@ apps = Apps()
 users = Users()
 vector = Vector()
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     # Core functions
-    "auth", 
+    "auth",
     "get_config",
-    
+
     # Client instances
-    "llm", 
-    "email", 
-    "data", 
-    "groups", 
-    "forms", 
-    "tasks", 
-    "queues", 
-    "web", 
+    "llm",
+    "email",
+    "data",
+    "groups",
+    "forms",
+    "tasks",
+    "queues",
+    "web",
     "apps",
     "users",
     "vector",
-    
+
     # Client classes
     "LLM",
-    "Email", 
+    "Email",
     "Data",
     "Groups",
     "Forms",
-    "Tasks", 
+    "Tasks",
     "Queues",
     "Web",
     "Apps",
     "Users",
     "Vector",
-    
+
     # Templates module
-    "templates"
+    "templates",
+
+    # Usage tracking (chat + embedding)
+    "get_usage",
+    "reset_usage",
+    "track",
+    "flush_usage_to_dataset",
 ]
