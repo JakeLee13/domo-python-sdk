@@ -4,11 +4,13 @@ AI text generation client for Domo SDK.
 
 import json
 import time
+import warnings
 from typing import Any, List, Callable, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from ..core import _get_domo_client, _config
 from .. import templates
+from .. import pricing
 from .. import usage
 
 
@@ -102,13 +104,24 @@ class LLM:
         response = domo_client._post(url, payload).json()
         elapsed = time.time() - call_started
 
+        # Cost tracking assumes the chat model is exactly pricing.CHAT_MODEL.
+        # The API echoes "<model>:<provider>" in modelId, so startswith() is
+        # the right check. If the model ever changes, fail loudly instead of
+        # silently miscounting.
+        returned_model = response.get("modelId", "") or ""
+        if returned_model and not returned_model.startswith(pricing.CHAT_MODEL):
+            warnings.warn(
+                f"Unexpected chat model {returned_model!r} — cost calc assumes "
+                f"{pricing.CHAT_MODEL}. Update domo_sdk/pricing.py if this is intentional.",
+                stacklevel=2,
+            )
+
         # Record usage. modelProviderUsage may be null on rare error responses,
         # and reasoningTokens is explicitly null on non-reasoning models — so
         # `.get(..., 0) or 0` is needed (`.get(k, 0)` returns None when value is None).
         provider_usage = response.get("modelProviderUsage") or {}
         usage.record_call(
             surface="chat",
-            model_id=response.get("modelId"),
             input_tokens=provider_usage.get("inputTokens") or 0,
             output_tokens=provider_usage.get("outputTokens") or 0,
             reasoning_tokens=provider_usage.get("reasoningTokens") or 0,

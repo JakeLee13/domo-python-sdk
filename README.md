@@ -195,7 +195,7 @@ prompt, docs = vector.rag_pipeline("my-index", "user question", top_k=3)
 
 ### Cost Tracking
 
-Every `llm.prompt()`, `llm.parallel()`, and `vector.embed()` call automatically accumulates **token usage and USD cost** into a thread-safe global counter. Cost comes from a bundled per-model rate table sourced from [Domo's AI model pricing page](https://www.domo.com/consumption-terms/ai-model-pricing). Notebooks running on Domo Automation can answer "what did this run cost?" without any per-call instrumentation.
+Every `llm.prompt()`, `llm.parallel()`, and `vector.embed()` call automatically accumulates **token usage and USD cost** into a thread-safe global counter. Cost comes from hardcoded rates for the two models the SDK calls — sourced from [Domo's AI model pricing page](https://www.domo.com/consumption-terms/ai-model-pricing). Notebooks running on Domo Automation can answer "what did this run cost?" without any per-call instrumentation.
 
 ```python
 from domo_sdk import get_usage, reset_usage, track, flush_usage_to_dataset
@@ -208,7 +208,7 @@ print(get_usage())
 # {'input_tokens': 12044, 'output_tokens': 3201, 'reasoning_tokens': 0,
 #  'embedding_tokens_estimated': 0, 'total_tokens': 15245,
 #  'chat_calls': 47, 'embedding_calls': 0, 'elapsed_seconds': 38.2,
-#  'cost_usd': 0.10937, 'unknown_model_calls': 0, ...}
+#  'cost_usd': 0.10937, ...}
 
 # Scoped tracking for a specific block
 with track() as phase:
@@ -239,34 +239,42 @@ flush_usage_to_dataset(
 
 #### How cost is calculated
 
-`cost_usd` is computed per-call from token counts × per-model USD rates. The rates live in [domo_sdk/pricing.py](domo_sdk/pricing.py) as a Python dict, sourced from <https://www.domo.com/consumption-terms/ai-model-pricing>. The math:
+The SDK only ever calls two models, so [domo_sdk/pricing.py](domo_sdk/pricing.py) hardcodes their rates as module-level constants — no lookup table, no model normalization. Sourced from <https://www.domo.com/consumption-terms/ai-model-pricing>; refresh the constants in `pricing.py` when Domo updates the page.
 
+```python
+CHAT_MODEL = "domo.domo_ai.domogpt-medium-v2.1"
+CHAT_INPUT_USD_PER_M  = 3.90
+CHAT_OUTPUT_USD_PER_M = 19.50    # also reasoning tokens
+
+EMBEDDING_MODEL = "domo.domo_ai.domo-embed-text-multilingual-v1"
+EMBEDDING_INPUT_USD_PER_M = 0.13
 ```
-cost = (input_tokens  / 1M) × input_rate    +
-       (output_tokens / 1M) × output_rate   +
-       (reasoning_tokens / 1M) × output_rate    # billed at output rate
-```
 
-Embedding calls route `embedding_tokens_estimated` to the input side (embedding models are input-only).
-
-**Naming gotcha — three formats for the same model.** The API request takes `domo.domo_ai.domogpt-medium-v2.1` (dots), the response returns the same string with a `:anthropic` (or other provider) suffix appended, and the pricing page calls it `ai-pro-...-medium-v2_1-input` (underscores). The SDK keys its table on the request format and strips the response suffix before lookup via `pricing.normalize_model_id()`.
-
-**Default model & current rate.** The SDK defaults to `domo.domo_ai.domogpt-medium-v2.1` ($3.90 input / $19.50 output per 1M tokens). All Anthropic-backed `domogpt-medium` versions (v1, v1.1, v1.2, v2, v2.1, v2.2) share these rates. Override per call via `llm.prompt(model="...")` or globally by mutating `_config['llm_settings']['model']`.
-
-**Pricing table maintenance.** The bundled table is a snapshot — refresh it when Domo updates the pricing page. The module docstring records the snapshot date. A non-zero `unknown_model_calls` in `get_usage()` is a signal the table is missing entries; those calls contribute 0 to `cost_usd` so the total is conservative rather than inflated.
+Per-call cost is `(input_tokens / 1M) × input_rate + (output_tokens / 1M) × output_rate`, dispatched on `surface == "chat"` vs `"embedding"` inside [usage.record_call](domo_sdk/usage.py).
 
 ```python
 from domo_sdk import pricing
-pricing.calculate_cost_usd("domo.domo_ai.domogpt-medium-v2.1", input_tokens=1000, output_tokens=500)
-# 0.0136 — i.e. $0.0136 for 1k in / 500 out on medium-v2.1
+pricing.chat_cost_usd(input_tokens=1000, output_tokens=500)
+# 0.013650 — $0.01365 for 1k in / 500 out
+pricing.embedding_cost_usd(input_tokens=1000)
+# 0.000130 — $0.000130 for 1k input tokens
 ```
+
+**Defensive warning if the model changes.** Both `llm._call_api` and `vector.embed` check the response's `modelId` against the constants above. If something other than `medium-v2.1` (chat) or `domo-embed-text-multilingual-v1` (embedding) comes back, a `UserWarning` fires:
+
+```
+Unexpected chat model 'domo.domo_ai.domogpt-large-v2.2:anthropic' — cost calc
+assumes domo.domo_ai.domogpt-medium-v2.1. Update domo_sdk/pricing.py if this is intentional.
+```
+
+This makes a config-side model switch fail loudly rather than silently miscount cost.
 
 #### What's not tracked
 
 - `vector.query(input_text=...)` — triggers an embedding call inside Domo's recall backend that doesn't surface to the SDK. Pre-embed via `vector.embed()` then pass `embedding=` if you need the cost visible.
 - JSON-mode chat calls (`response_format=`) burn ~600+ extra input tokens per call due to system prompt injection. The accumulator captures this faithfully — not a bug, just expect inflated input counts.
 
-See [agent-docs/cost-tracking.md](agent-docs/cost-tracking.md) for the dataset schema, per-model breakdown caveats, and future-improvement notes. See [agent-docs/ai-response-shape.md](agent-docs/ai-response-shape.md) for the captured Domo AI response shapes that drive the tracking. See [domo_sdk/pricing.py](domo_sdk/pricing.py) for the bundled pricing table.
+See [agent-docs/cost-tracking.md](agent-docs/cost-tracking.md) for the dataset schema and limitations. See [agent-docs/ai-response-shape.md](agent-docs/ai-response-shape.md) for the captured Domo AI response shapes that drive the tracking. See [domo_sdk/pricing.py](domo_sdk/pricing.py) for the hardcoded rates.
 
 ### Web Scraping
 ```python

@@ -19,8 +19,7 @@ print(get_usage())
 # {'input_tokens': 12044, 'output_tokens': 3201, 'reasoning_tokens': 0,
 #  'embedding_tokens_estimated': 0, 'total_tokens': 15245,
 #  'chat_calls': 47, 'embedding_calls': 0, 'elapsed_seconds': 38.2,
-#  'cost_usd': 0.10937,             # ← computed from modelId × bundled rates
-#  'unknown_model_calls': 0, ...}   # ← non-zero means a model is missing from pricing.py
+#  'cost_usd': 0.10937, ...}        # ← USD cost from hardcoded rates in pricing.py
 ```
 
 ## Three layers
@@ -83,8 +82,7 @@ Create a Domo dataset with these columns before first flush:
 | `chat_calls` | LONG | `prompt()` invocations since last reset |
 | `embedding_calls` | LONG | `vector.embed()` invocations since last reset |
 | `elapsed_seconds` | DOUBLE | Cumulative wall-clock across all calls |
-| `cost_usd` | DOUBLE | USD cost computed from tokens × per-model rates ([pricing.py](../domo_sdk/pricing.py)) |
-| `unknown_model_calls` | LONG | Calls whose model wasn't in pricing.py — non-zero means cost_usd is undercount |
+| `cost_usd` | DOUBLE | USD cost computed from token counts × hardcoded rates in [pricing.py](../domo_sdk/pricing.py) |
 | `notebook_id` | STRING | Caller-supplied identifier |
 | `run_id` | STRING | Caller-supplied (e.g. Domo Automation run ID) |
 
@@ -101,63 +99,53 @@ If true append matters (high-frequency tracking, multi-notebook concurrency), th
 
 ## How cost is calculated
 
-`cost_usd` is computed per-call inside `usage.record_call()` and accumulated into the global counter. The math:
-
-```
-cost = (input_tokens  / 1_000_000) × input_rate
-     + (output_tokens / 1_000_000) × output_rate
-     + (reasoning_tokens / 1_000_000) × output_rate   # billed at output rate
-```
-
-For embeddings, `embedding_tokens_estimated` is summed into the input side (embedding models are input-only).
-
-### The pricing table
-
-Per-model rates live in [domo_sdk/pricing.py](../domo_sdk/pricing.py) as a Python dict, sourced from <https://www.domo.com/consumption-terms/ai-model-pricing>. Rates are USD per 1M tokens. Pricing snapshot date is in the module docstring; refresh manually when Domo updates the page.
+The SDK only ever calls two models, so [pricing.py](../domo_sdk/pricing.py) hardcodes their rates as module-level constants. No lookup table, no model-name normalization, no per-call rate dispatch beyond `surface == "chat"` vs `surface == "embedding"`.
 
 ```python
-from domo_sdk import pricing
-pricing.calculate_cost_usd("domo.domo_ai.domogpt-medium-v2.1", input_tokens=1000, output_tokens=500)
-# → 0.0136 (i.e. $0.0136)
+CHAT_MODEL = "domo.domo_ai.domogpt-medium-v2.1"
+CHAT_INPUT_USD_PER_M  = 3.90    # USD per 1M input tokens
+CHAT_OUTPUT_USD_PER_M = 19.50   # USD per 1M output tokens (also reasoning tokens)
+
+EMBEDDING_MODEL = "domo.domo_ai.domo-embed-text-multilingual-v1"
+EMBEDDING_INPUT_USD_PER_M = 0.13
 ```
 
-### Naming gotcha — three different formats for the same model
-
-The SDK has to reconcile three naming conventions:
-
-| Surface | Format | Example |
-|---|---|---|
-| API request payload | `domo.domo_ai.<family>-<tier>-vM.m` (dots) | `domo.domo_ai.domogpt-medium-v2.1` |
-| API response `modelId` | request format + `:provider` suffix | `domo.domo_ai.domogpt-medium-v2.1:anthropic` |
-| Pricing-page name | `ai-pro-...-<tier>-vM_m-input` (underscores) | `ai-pro-model-processing-llm-domogpt-anthropic-medium-v2_1-input` |
-
-`pricing.normalize_model_id()` strips the `:provider` suffix from response modelIds before lookup. The pricing-page format is purely a reference for the table author — the dict is keyed on the request/response form (after suffix strip).
-
-### Unknown models
-
-If a notebook calls a model that isn't in [pricing.py](../domo_sdk/pricing.py), `calculate_cost_usd()` returns `None` instead of `0.0`. This:
-- Adds `1` to `unknown_model_calls` in the counter (visible in `get_usage()` and the flush row)
-- Adds `0` to `cost_usd` (so the cost number is conservative, not inflated)
-
-A non-zero `unknown_model_calls` is a signal that pricing.py needs a refresh. Notebooks running on Domo Automation can include a check like:
+Per-call cost:
 
 ```python
-u = get_usage()
-if u["unknown_model_calls"] > 0:
-    print(f"WARNING: {u['unknown_model_calls']} call(s) hit an unpriced model — cost_usd is incomplete")
+# Chat
+cost = (input_tokens  / 1e6) × 3.90
+     + (output_tokens / 1e6) × 19.50
+     + (reasoning_tokens / 1e6) × 19.50   # billed at output rate
+
+# Embedding (input only — embedding models have no output)
+cost = (estimated_tokens / 1e6) × 0.13
 ```
+
+`pricing.chat_cost_usd(...)` and `pricing.embedding_cost_usd(...)` are the public helpers. `usage.record_call()` dispatches on `surface` to pick the right one.
+
+### Why hardcoded, not a lookup table
+
+The SDK's only consumers are notebooks that call `domogpt-medium-v2.1` for chat and the Cohere v1 embedding model — full stop. A 40-row table covering every model on the pricing page was speculative coverage that fights pricing-page drift more than it helps. Two named constants are easier to audit, easier to update, and impossible to accidentally use with the wrong model (see "Defensive warning" below).
+
+Snapshot date for the rates is in [pricing.py](../domo_sdk/pricing.py)'s module docstring — refresh manually when Domo updates the page.
+
+### Defensive warning if the model changes
+
+If `_config['llm_settings']['model']` is changed (or `vector.embed(model=...)` is called with a different model), the API will return a different `modelId` — and the cost calc will be silently wrong because the rates above won't apply.
+
+To make this fail loudly, both [llm._call_api](../domo_sdk/clients/llm.py) and [vector.embed](../domo_sdk/clients/vector.py) check the response's `modelId` against `pricing.CHAT_MODEL` / `pricing.EMBEDDING_MODEL` (with `startswith()` to ignore the `:provider` suffix the API appends). A mismatch emits a `UserWarning`:
+
+```
+Unexpected chat model 'domo.domo_ai.domogpt-large-v2.2:anthropic' — cost calc
+assumes domo.domo_ai.domogpt-medium-v2.1. Update domo_sdk/pricing.py if this is intentional.
+```
+
+If you intentionally switch models, update the constants in `pricing.py` (and ideally only one model at a time, or the warning hides itself behind itself).
 
 ### Reasoning tokens
 
-Domo doesn't separately price reasoning tokens. The SDK bills them at the **output rate**, which matches Anthropic's billing model for thinking-class models. On current v2.x models `reasoningTokens` is always null/zero so this is moot — relevant when reasoning models become available.
-
-### When a notebook uses multiple models
-
-The current implementation tracks a single rolling `cost_usd` total across all models. The flush row records the *configured* model name (or whatever you pass via `model=`), but the cost number reflects all models used. For a per-model breakdown:
-- Use `track()` blocks to scope each model section, then flush each separately
-- Or call `flush_usage_to_dataset()` after each model switch with `reset_usage()` between them
-
-A future per-model-row feature is in the Future Improvements section.
+Domo doesn't separately price reasoning tokens. The SDK bills them at the **output rate**, matching Anthropic's billing model. On current v2.x models `reasoningTokens` is always null/zero so this is moot — relevant when reasoning models become available.
 
 ## What's tracked vs. not
 
@@ -178,12 +166,10 @@ A future per-model-row feature is in the Future Improvements section.
 1. **Embedding token counts are estimates.** Cohere's actual tokenizer would give better numbers; we keep it dependency-free with chars/4. Document the imprecision in cost reports.
 2. **JSON-mode chat calls have inflated input cost.** Domo injects ~600+ system tokens to enforce structured output (see [ai-response-shape.md](ai-response-shape.md#cost-relevant-gotchas)). The accumulator captures this faithfully — it's not a bug, but expect higher input_tokens when `response_format=` is used.
 3. **Counter is per-Python-process.** Notebooks running in separate kernels each have their own counter. Use `notebook_id` / `run_id` on flush to disambiguate.
-4. **No per-model breakdown.** The current row schema records only the *configured* model. If a notebook switches models mid-run, the flush row reports the last-set model. To track per-model: call `flush_usage_to_dataset()` after each model switch and `reset_usage()` between them, or extend the schema.
+4. **Single-model assumption.** Cost rates are hardcoded for `domo.domo_ai.domogpt-medium-v2.1` (chat) and `domo.domo_ai.domo-embed-text-multilingual-v1` (embedding). If a notebook switches models, a `UserWarning` fires from `llm._call_api` / `vector.embed`, and the cost number will be wrong until [pricing.py](../domo_sdk/pricing.py) is updated.
 
 ## Future improvements
 
 - True append via PyDomo Stream API (eliminates RMW race).
 - Optional `auto_flush_to_dataset` config in `auth()` so flush happens implicitly at notebook end.
-- Per-model breakdown — track tokens & cost per model in a `by_model` dict; either one row per (notebook_run × model) on flush, or a JSON column. Punt until we hit the first multi-model notebook.
 - Replace chars/4 embedding estimator with Cohere's actual tokenizer if `cohere` is added as an optional dep (would tighten the ±20% embedding cost estimate).
-- `scripts/refresh-pricing.py` — quarterly script to scrape <https://www.domo.com/consumption-terms/ai-model-pricing>, regenerate `pricing.py`, print a diff. Currently the table is refreshed by hand.

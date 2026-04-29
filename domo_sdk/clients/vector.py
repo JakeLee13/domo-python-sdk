@@ -8,10 +8,12 @@ functionality for semantic search, RAG, and document retrieval.
 from typing import List, Dict, Any, Optional, Union, Tuple
 import base64
 import time
+import warnings
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
 from ..core import _get_domo_client, _config
+from .. import pricing
 from .. import usage
 
 
@@ -68,6 +70,17 @@ class Vector:
                 error_msg = response.get('details', {}).get('inputIssue', response.get('message', 'Unknown error'))
                 raise ValueError(f"Embedding API error: {error_msg}")
 
+            # Cost tracking assumes the embedding model is exactly
+            # pricing.EMBEDDING_MODEL. The API echoes "<model>:<provider>" in
+            # modelId, so startswith() is the right check.
+            returned_model = response.get("modelId", "") or model or ""
+            if returned_model and not returned_model.startswith(pricing.EMBEDDING_MODEL):
+                warnings.warn(
+                    f"Unexpected embedding model {returned_model!r} — cost calc assumes "
+                    f"{pricing.EMBEDDING_MODEL}. Update domo_sdk/pricing.py if this is intentional.",
+                    stacklevel=2,
+                )
+
             # Embedding endpoint does not return token counts (modelProviderUsage
             # is null — see agent-docs/ai-response-shape.md). Estimate from input
             # length: chars/4 is a coarse, model-agnostic approximation. Off by
@@ -75,7 +88,6 @@ class Vector:
             estimated_tokens = sum(len(t) for t in truncated_texts) // 4
             usage.record_call(
                 surface="embedding",
-                model_id=response.get("modelId") or model,
                 embedding_tokens_estimated=estimated_tokens,
                 elapsed_seconds=elapsed,
             )
