@@ -6,21 +6,27 @@ interfaces for AI generation, email delivery, data management, user administrati
 form creation, task management, web scraping, and custom app generation.
 
 Example usage:
-    from domo_sdk import auth, llm, email, data
-    
+    from domo_sdk import auth, llm, email, data, cost
+
     # Configure authentication
-    auth(dev_token="your_token", 
-         client_id="your_client_id", 
+    auth(dev_token="your_token",
+         client_id="your_client_id",
          client_secret="your_secret")
-    
+
+    # Track cost across the run
+    cost.start()
+
     # Generate AI content
     result = llm.prompt("Write a sales report summary")
-    
+
     # Send email
     email.send("user@company.com", "Report", result)
-    
+
     # Get dataset
     df = data.get("dataset_id_123")
+
+    # Print summary + (optionally) flush a row to a Domo dataset
+    cost.end(dataset_id="cost-dataset-id", notebook_id="my-notebook")
 
 """
 
@@ -28,13 +34,7 @@ from .core import auth, get_config
 from .clients import LLM, Email, Data, Groups, Forms, Tasks, Queues, Web, Apps, Users, Vector
 
 from . import templates
-from . import usage as _usage_module
-from .usage import (
-    get_usage,
-    reset_usage,
-    track,
-    flush_to_dataset as flush_usage_to_dataset,
-)
+from . import cost
 
 # Create global client instances
 llm = LLM()
@@ -85,9 +85,6 @@ __all__ = [
     # Templates module
     "templates",
 
-    # Usage tracking (chat + embedding)
-    "get_usage",
-    "reset_usage",
-    "track",
-    "flush_usage_to_dataset",
+    # Cost tracking (chat + embedding) — see domo_sdk/cost.py
+    "cost",
 ]

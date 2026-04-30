@@ -1,101 +1,96 @@
 # Cost tracking
 
-Every notebook that calls `llm.prompt()`, `llm.parallel()`, or `vector.embed()` accumulates token usage **and USD cost** into a thread-safe global counter. Notebooks read the total at the end of a run, scope a block via context manager, or flush a row to a Domo dataset for cross-run cost analysis.
+Every notebook that calls `llm.prompt()`, `llm.parallel()`, or `vector.embed()` accumulates token usage **and USD cost** into a thread-safe global counter. The public API is two functions plus one helper, all under the `cost` namespace.
 
 > See [ai-response-shape.md](ai-response-shape.md) for the underlying API response shape and why embedding tokens are estimated rather than measured. See [pricing.py](../domo_sdk/pricing.py) for the bundled per-model rate table.
 
 ## Quick start
 
 ```python
-from domo_sdk import auth, llm, get_usage, reset_usage, track, flush_usage_to_dataset
+from domo_sdk import auth, llm, cost
 
 auth(dev_token, client_id, client_secret)
-reset_usage()  # Optional: clear the global counter at start of a run
+cost.start()                                                    # reset counter at top
 
 llm.prompt("Summarize this transcript: ...")
 llm.parallel(items, lambda x: llm.prompt(f"Classify: {x}"))
 
-print(get_usage())
-# {'input_tokens': 12044, 'output_tokens': 3201, 'reasoning_tokens': 0,
-#  'embedding_tokens_estimated': 0, 'total_tokens': 15245,
-#  'chat_calls': 47, 'embedding_calls': 0, 'elapsed_seconds': 38.2,
-#  'cost_usd': 0.10937, ...}        # ← USD cost from hardcoded rates in pricing.py
+cost.end(dataset_id="abc123-...", notebook_id="my-notebook")    # print + flush at bottom
+# === my-notebook ===
+#   47 chat calls, 0 embedding calls
+#   12,044 input / 3,201 output tokens (15,245 total)
+#   $0.10937 over 38.2s
+#   flushed to dataset abc123-...
 ```
 
-## Three layers
+## API
 
-### 1. Always-on global accumulator (zero-config)
+### `cost.start()`
 
-Every chat and embedding call routes through `usage.record_call()`. You don't need to do anything to enable it — `get_usage()` returns the running total at any time.
+Reset the global counter. Call once at the top of a notebook run, after `auth()`.
+
+### `cost.end(dataset_id=None, *, notebook_id=None, run_id=None, extra=None, quiet=False)`
+
+Print a one-paragraph cost summary and (optionally) flush a row to a Domo dataset. Returns the row dict.
+
+- **No `dataset_id`** → just prints + returns the row. No Domo write. Useful for local dev.
+- **With `dataset_id`** → also appends a row to the dataset via read-modify-write.
+- **`quiet=True`** → suppress the print. Returned dict is unchanged.
+- **`extra={...}`** → optional dict merged into the row (target dataset must already have matching columns).
+
+### `cost.phase(label)` — scoped sub-tracking
+
+Context manager for measuring cost of a specific block inside a `cost.start()` / `cost.end()` pair. Tokens used inside still count toward the cumulative `cost.end()` total.
 
 ```python
-get_usage()        # snapshot of accumulated totals
-reset_usage()      # zero out the counter (call at start of a notebook)
+cost.start()
+
+with cost.phase("context cards") as p1:
+    llm.parallel(items=opps, prompt_func=build_context, max_workers=10)
+# [phase: context cards] 47 chat / 0 embed, $0.0936, 12.4s
+
+with cost.phase("deal scoring") as p2:
+    llm.parallel(items=deals, prompt_func=score, max_workers=10)
+# [phase: deal scoring] 88 chat / 0 embed, $0.1742, 23.1s
+
+cost.end(dataset_id="...", notebook_id="L2_deal_intelligence")
+# (cumulative across both phases)
 ```
 
-### 2. Scoped tracking with `track()` context manager
+The `Phase` object exposes `input_tokens`, `output_tokens`, `reasoning_tokens`, `embedding_tokens_estimated`, `total_tokens`, `chat_calls`, `embedding_calls`, `cost_usd`, `elapsed_seconds`, and the `label` you passed in.
 
-To measure cost of a specific block (e.g. a single phase of analysis), use `with track() as t:`. The context object exposes the *delta* — what happened inside the block. Tokens used inside the block are still counted in the global accumulator too.
+Phase blocks always print their delta on exit. To suppress, just don't pass anything — there's no `quiet` mode here (use a no-op block if you really need silence). Phases can be nested or sequential.
 
-```python
-with track() as phase1:
-    for item in dataset:
-        llm.prompt(f"Extract entities from: {item}")
-print(f"Phase 1: {phase1.chat_calls} calls, {phase1.total_tokens} tokens, {phase1.elapsed_seconds:.1f}s")
+## Dataset schema
 
-with track() as phase2:
-    summary = llm.prompt("Aggregate all the extracted entities into a report")
-print(f"Phase 2: {phase2.chat_calls} calls, {phase2.total_tokens} tokens")
-```
-
-Fields on the context object:
-- `input_tokens`, `output_tokens`, `reasoning_tokens`, `embedding_tokens_estimated`
-- `total_tokens` — sum of the four above
-- `chat_calls`, `embedding_calls`
-- `elapsed_seconds` — wall-clock for the block (not just API time)
-
-### 3. Persistent flush to a Domo dataset
-
-For cross-run cost analysis, flush the accumulated usage as a row in a Domo dataset. Call once at the end of a notebook run.
-
-```python
-flush_usage_to_dataset(
-    "abc123-def4-5678-90ab-cdef12345678",  # dataset ID
-    notebook_id="customer-churn-analysis",
-    run_id=os.environ.get("DOMO_AUTOMATION_RUN_ID"),
-)
-```
-
-#### Dataset schema
-
-Create a Domo dataset with these columns before first flush:
+Pass a real `dataset_id` to `cost.end()` to append a row. The dataset can be empty on first call — the schema bootstraps from the row's columns. Subsequent calls match against existing columns. The columns:
 
 | Column | Type | Source |
 |---|---|---|
 | `timestamp` | DATETIME | Set at flush time, UTC ISO-8601 |
-| `model` | STRING | From `_config['llm_settings']['model']`, or override via `model=` arg |
+| `model` | STRING | From `_config['llm_settings']['model']` at flush time |
 | `input_tokens` | LONG | Chat input tokens (exact, from API) |
 | `output_tokens` | LONG | Chat generation tokens (exact, from API) |
 | `reasoning_tokens` | LONG | For thinking-class models; 0 on current models |
 | `embedding_tokens_estimated` | LONG | **Estimated** from input chars/4; ±20% accurate |
 | `total_tokens` | LONG | Sum of the four above |
-| `chat_calls` | LONG | `prompt()` invocations since last reset |
-| `embedding_calls` | LONG | `vector.embed()` invocations since last reset |
+| `chat_calls` | LONG | `prompt()` invocations since last `cost.start()` |
+| `embedding_calls` | LONG | `vector.embed()` invocations since last `cost.start()` |
 | `elapsed_seconds` | DOUBLE | Cumulative wall-clock across all calls |
 | `cost_usd` | DOUBLE | USD cost computed from token counts × hardcoded rates in [pricing.py](../domo_sdk/pricing.py) |
 | `notebook_id` | STRING | Caller-supplied identifier |
 | `run_id` | STRING | Caller-supplied (e.g. Domo Automation run ID) |
 
-To add custom columns, pass `extra={...}` to `flush_usage_to_dataset()` and add the matching columns to the dataset.
+To add custom columns, pass `extra={...}` to `cost.end()` and add the matching columns to the dataset.
 
-#### Append behavior
+### Append behavior
 
-The flush helper does a **read-modify-write** to append (the SDK's data client lacks a true append primitive). Implications:
+`cost.end(dataset_id=...)` does a **read-modify-write** append (the SDK's data client lacks a true append primitive). Implications:
 
 - Concurrent flushes can race and lose rows. Fine for once-per-notebook cost logging; *do not* call from inside a parallel-prompt loop.
 - For new datasets, the first flush bootstraps the schema from the row's columns. Subsequent flushes match against existing columns.
 
-If true append matters (high-frequency tracking, multi-notebook concurrency), the path is to add a Stream API wrapper to `data.py` — out of scope for v0.2.0 but easy to add later.
+If true append matters (high-frequency tracking, multi-notebook concurrency), the path is to add a Stream API wrapper to `data.py` — listed in Future Improvements.
 
 ## How cost is calculated
 
@@ -161,15 +156,25 @@ Domo doesn't separately price reasoning tokens. The SDK bills them at the **outp
 - `vector.query(input_text=...)` — when given text, this triggers an embedding call inside the Domo recall backend that doesn't surface to us. The recall API itself returns no usage info. Either pre-embed via `vector.embed()` then pass `embedding=`, or accept that recall queries are an untracked dimension.
 - `vector.upsert()` — usually called with pre-computed embeddings, no AI cost.
 
+## Implementation notes (where the mechanics live)
+
+For agents poking around the code:
+
+- **`domo_sdk/cost.py`** — public façade. `start()`, `end(...)`, `phase(...)`, plus the `Phase` dataclass returned by the context manager. Thin wrapper.
+- **`domo_sdk/usage.py`** — private accumulator. Module-level `_Counter` dataclass guarded by a `threading.Lock`. Exposes `record_call(...)` (called from `clients/llm.py` and `clients/vector.py`) and underscore-prefixed `_get_usage()` / `_reset_usage()` for `cost.py` to use. **Don't import the underscored names from outside `cost.py`** — that's the whole reason the surface was reduced.
+- **`domo_sdk/pricing.py`** — hardcoded per-1M-token rates. `chat_cost_usd(...)` and `embedding_cost_usd(...)` are called from `record_call`.
+
+The reason `cost.py` is a separate module from `usage.py` rather than just renaming the latter: `usage.py` is imported by `clients/llm.py` and `clients/vector.py` at SDK load time (for `record_call`), but `cost.py` imports `data` from the package root (for the dataset flush) — which doesn't exist until `__init__.py` finishes instantiating clients. Splitting keeps the import graph acyclic.
+
 ## Limitations & caveats
 
 1. **Embedding token counts are estimates.** Cohere's actual tokenizer would give better numbers; we keep it dependency-free with chars/4. Document the imprecision in cost reports.
 2. **JSON-mode chat calls have inflated input cost.** Domo injects ~600+ system tokens to enforce structured output (see [ai-response-shape.md](ai-response-shape.md#cost-relevant-gotchas)). The accumulator captures this faithfully — it's not a bug, but expect higher input_tokens when `response_format=` is used.
-3. **Counter is per-Python-process.** Notebooks running in separate kernels each have their own counter. Use `notebook_id` / `run_id` on flush to disambiguate.
+3. **Counter is per-Python-process.** Notebooks running in separate kernels each have their own counter. Use `notebook_id` / `run_id` on `cost.end()` to disambiguate.
 4. **Single-model assumption.** Cost rates are hardcoded for `domo.domo_ai.domogpt-medium-v2.1` (chat) and `domo.domo_ai.domo-embed-text-multilingual-v1` (embedding). If a notebook switches models, a `UserWarning` fires from `llm._call_api` / `vector.embed`, and the cost number will be wrong until [pricing.py](../domo_sdk/pricing.py) is updated.
 
 ## Future improvements
 
-- True append via PyDomo Stream API (eliminates RMW race).
-- Optional `auto_flush_to_dataset` config in `auth()` so flush happens implicitly at notebook end.
+- True append via PyDomo Stream API (eliminates RMW race in `cost.end(dataset_id=...)`).
+- Optional `cost_dataset_id=` argument on `auth()` so `cost.end()` can flush implicitly without re-passing the ID. Or an `atexit` hook on `cost.start()` that auto-flushes if the user forgot to call `cost.end()`. Both have "magic" tradeoffs — leave them off until we feel real pain.
 - Replace chars/4 embedding estimator with Cohere's actual tokenizer if `cohere` is added as an optional dep (would tighten the ±20% embedding cost estimate).

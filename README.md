@@ -197,45 +197,54 @@ prompt, docs = vector.rag_pipeline("my-index", "user question", top_k=3)
 
 Every `llm.prompt()`, `llm.parallel()`, and `vector.embed()` call automatically accumulates **token usage and USD cost** into a thread-safe global counter. Cost comes from hardcoded rates for the two models the SDK calls — sourced from [Domo's AI model pricing page](https://www.domo.com/consumption-terms/ai-model-pricing). Notebooks running on Domo Automation can answer "what did this run cost?" without any per-call instrumentation.
 
-```python
-from domo_sdk import get_usage, reset_usage, track, flush_usage_to_dataset
+Two functions, one optional helper:
 
-# Always-on global accumulator
-reset_usage()                          # zero the counter at start of a run
+```python
+from domo_sdk import auth, llm, cost
+
+auth(...)
+cost.start()                                         # reset counter at top of notebook
+
 llm.prompt("Summarize this transcript: ...")
 llm.parallel(items, lambda x: llm.prompt(f"Classify: {x}"))
-print(get_usage())
-# {'input_tokens': 12044, 'output_tokens': 3201, 'reasoning_tokens': 0,
-#  'embedding_tokens_estimated': 0, 'total_tokens': 15245,
-#  'chat_calls': 47, 'embedding_calls': 0, 'elapsed_seconds': 38.2,
-#  'cost_usd': 0.10937, ...}
 
-# Scoped tracking for a specific block
-with track() as phase:
-    llm.prompt("Step one")
-    llm.prompt("Step two")
-print(phase.chat_calls, phase.total_tokens, f"${phase.cost_usd:.4f}")
-# 2, 184, $0.0036
-
-# Persist to a Domo dataset for cross-run analysis
-flush_usage_to_dataset(
-    "abc123-def4-5678-90ab-cdef12345678",
-    notebook_id="customer-churn-analysis",
-    run_id=os.environ.get("DOMO_AUTOMATION_RUN_ID"),
-)
+cost.end(dataset_id="abc123-...", notebook_id="my-notebook")
+# === my-notebook ===
+#   47 chat calls, 0 embedding calls
+#   12,044 input / 3,201 output tokens (15,245 total)
+#   $0.10937 over 38.2s
+#   flushed to dataset abc123-...
 ```
+
+`cost.end()` always returns the row dict. Without `dataset_id` it just prints the summary — useful for local dev. With `dataset_id` it also appends a row to a Domo dataset for cross-run analysis. Pass `quiet=True` to suppress the print.
+
+**Scoped per-phase cost** — when one notebook does multiple LLM passes (e.g. context-card pass + deal-scoring pass), wrap each in `cost.phase(...)`:
+
+```python
+cost.start()
+
+with cost.phase("context cards"):
+    llm.parallel(opps, build_context, max_workers=10)
+# [phase: context cards] 47 chat / 0 embed, $0.0936, 12.4s
+
+with cost.phase("deal scoring"):
+    llm.parallel(deals, score, max_workers=10)
+# [phase: deal scoring] 88 chat / 0 embed, $0.1742, 23.1s
+
+cost.end(dataset_id="...", notebook_id="L2_deal_intelligence")  # cumulative across both
+```
+
+Phase blocks print on exit and expose the delta as a `Phase` object (`with cost.phase("...") as p: ...; print(p.cost_usd)`). Tokens inside still count toward the cumulative `cost.end()` total.
 
 #### How it works
 
-**Chat tokens are exact.** The Domo AI chat endpoint (`/api/ai/v1/messages/chat`) returns a `modelProviderUsage` block on every response with `inputTokens`, `outputTokens`, and `reasoningTokens`. The SDK's `llm._call_api()` extracts these and forwards them to the global counter. Numbers come straight from the model provider — no estimation.
+**Chat tokens are exact.** The Domo AI chat endpoint (`/api/ai/v1/messages/chat`) returns a `modelProviderUsage` block on every response with `inputTokens`, `outputTokens`, and `reasoningTokens`. The SDK's `llm._call_api()` extracts these and forwards them to a thread-safe global counter. Numbers come straight from the model provider — no estimation.
 
 **Embedding tokens are estimated.** The Domo embedding endpoint (`/api/ai/v1/embedding/text`) does *not* return token counts (`modelProviderUsage` is null). The SDK estimates as `chars / 4`, which is a coarse model-agnostic approximation. Treat embedding totals as ±20% accurate — useful for trends, not for billing.
 
-**The counter is global and process-local.** A single module-level `_Counter` (in `domo_sdk/usage.py`) accumulates across every chat and embedding call in the current Python process. It's thread-safe via a `threading.Lock`, so `llm.parallel()` workers don't race. Each notebook kernel has its own counter — use `notebook_id` / `run_id` on flush to disambiguate runs.
+**Counter is global and process-local.** Each notebook kernel has its own counter; `llm.parallel()` workers don't race (the counter is locked). Use `notebook_id` / `run_id` on `cost.end()` to disambiguate runs in the cost dataset.
 
-**Scoped tracking via `track()` is a snapshot-and-diff.** The context manager records the global counter on entry, computes the delta on exit, and exposes it on the context object. Tokens used inside the block are still counted in the global accumulator — `get_usage()` after the block sees them too.
-
-**Dataset flush is read-modify-write.** The Domo data client doesn't expose a true append, so `flush_usage_to_dataset()` does `data.get → concat → data.replace`. Fine for once-per-notebook cost logging; concurrent flushes can race and lose rows. Don't call from inside a parallel loop.
+**Dataset flush is read-modify-write.** The Domo data client doesn't expose a true append, so `cost.end(dataset_id=...)` does `data.get → concat → data.replace`. Fine for once-per-notebook cost logging; concurrent flushes can race and lose rows. Don't call from inside a parallel loop.
 
 #### How cost is calculated
 
